@@ -36,7 +36,7 @@ contract ERC721Token {
         require(_checkOnERC721Received(from, to, tokenId, ""), "ERC721: transfer to non ERC721Receiver implementer");
     }
 
-    // перегруженная версия safeTransferFrom с дополнительными данными
+    // перегруженная ((function overloading)!!!) версия safeTransferFrom с дополнительными данными
     function safeTransferFrom(
         address from,
         address to,
@@ -61,6 +61,7 @@ contract ERC721Token {
     // функция для установки адреса, которому разрешено управление токеном
     function approve(address to, uint256 tokenId) public {
         address owner = ownerOf(tokenId);
+        require(to != address(0), "ERC721: approve to the zero address");
         require(to != owner, "ERC721: approval to current owner");
         require(
             msg.sender == owner || isApprovedForAll(owner, msg.sender),
