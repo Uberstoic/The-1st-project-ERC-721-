@@ -11,9 +11,12 @@
   "license": "ISC",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.17"
+    "hardhat": "^2.22.17",
+    "solidity-coverage": "^0.8.14"
   },
   "dependencies": {
-    "alchemy-sdk": "^3.5.0"
+    "alchemy-sdk": "^3.5.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.4"
   }
 }
