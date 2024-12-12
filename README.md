@@ -12,7 +12,7 @@ The contract includes:
 - Support for secure token transfers to contracts implementing the IERC721Receiver interface.
 
 ## Deployed Smart Contract Address::
-[https://sepolia.etherscan.io/address/0xaeb00F5107b2A35dcfEdE57f3335E4b2c57b97B5#code]
+[https://sepolia.etherscan.io/address/0x1f5c49f4cc793d5e99051c228080ca4efcbf12fa#code]
 
 ## OpenSea Address:
-[https://testnets.opensea.io/assets/sepolia/0xaeb00f5107b2a35dcfede57f3335e4b2c57b97b5/1]
+[https://testnets.opensea.io/assets/sepolia/0x1f5c49f4cc793d5e99051c228080ca4efcbf12fa/7]
