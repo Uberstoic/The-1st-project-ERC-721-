@@ -1,15 +1,18 @@
 # The-1st-project-ERC-721-
 
-ERC721Token — это смарт-контракт для создания и управления невзаимозаменяемыми токенами (NFT) в блокчейне. Пользователи могут минтить, передавать и одобрять токены, а также проверять их владельцев.
+ERC721Token — is a smart contract for creating and managing non-fungible tokens (NFTs) on the blockchain. Users can mint, transfer, and approve tokens, as well as check token ownership.
 
-## Функциональность
-Контракт включает:
+## Features
+The contract includes:
 
-- Возможность минтинга уникальных токенов.
-- Передача токенов между пользователями.
-- Проверка владельца токена.
-- Одобрение других адресов для управления токеном.
-- Поддержка безопасной передачи токенов на контракты, реализующие интерфейс `IERC721Receiver`.
+- The ability to mint unique tokens.
+- Token transfer between users.
+- Checking the owner of a token.
+- Approval of other addresses to manage tokens.
+- Support for secure token transfers to contracts implementing the IERC721Receiver interface.
 
-Адрес развернутого смарт-контракта:
-[https://sepolia.etherscan.io/address/0x84a2D7dFE6e0ee96A08a6723D578f6bE01a035A1#code]
+## Deployed Smart Contract Address::
+[https://sepolia.etherscan.io/address/0xaeb00F5107b2A35dcfEdE57f3335E4b2c57b97B5#code]
+
+## OpenSea Address:
+[https://testnets.opensea.io/assets/sepolia/0xaeb00f5107b2a35dcfede57f3335e4b2c57b97b5/1]

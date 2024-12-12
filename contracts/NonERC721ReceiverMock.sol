@@ -2,5 +2,5 @@
 pragma solidity ^0.8.0;
 
 contract NonERC721ReceiverMock {
-    // этот контракт ничего не делает и используется для проверки ошибок передачи.
+    // this contract does nothing and is used to check for transmission errors.
 }

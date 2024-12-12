@@ -2,31 +2,37 @@
 pragma solidity ^0.8.0;
 
 contract ERC721Token {
-    // события из стандарта EIP-721
+    // Events from the EIP-721 standard
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
-    // маппинги для хранения информации о токенах
+    // Mappings to store token-related information
     mapping(uint256 => address) private _owners;
     mapping(address => uint256) private _balances;
     mapping(uint256 => address) private _tokenApprovals;
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-    // функция для получения баланса владельца
+    // Function to get the balance of a token owner
     function balanceOf(address owner) public view returns (uint256) {
         require(owner != address(0), "ERC721: balance query for the zero address");
         return _balances[owner];
     }
 
-    // функция для получения владельца токена
+    // Function to get the owner of a token
     function ownerOf(uint256 tokenId) public view returns (address) {
         address owner = _owners[tokenId];
         require(owner != address(0), "ERC721: owner query for nonexistent token");
         return owner;
     }
 
-    // функция для безопасной передачи токена
+    // Function to get the token metadata URI
+    function tokenURI(uint256 tokenId) public view returns (string memory) {
+        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
+        return "data:application/json;base64,eyJ0aXRsZSI6Ik15IE5GVCAjMSIsImRlc2NyaXB0aW9uIjoiVGhpcyBpcyBhIHRlc3QgTkZUIn0=";
+    }    
+
+    // Function to safely transfer a token
     function safeTransferFrom(
         address from,
         address to,
@@ -36,7 +42,7 @@ contract ERC721Token {
         require(_checkOnERC721Received(from, to, tokenId, ""), "ERC721: transfer to non ERC721Receiver implementer");
     }
 
-    // перегруженная ((function overloading)!!!) версия safeTransferFrom с дополнительными данными
+    // Overloaded version of safeTransferFrom with additional data
     function safeTransferFrom(
         address from,
         address to,
@@ -47,7 +53,7 @@ contract ERC721Token {
         require(_checkOnERC721Received(from, to, tokenId, data), "ERC721: transfer to non ERC721Receiver implementer");
     }
 
-    // функция для передачи токена
+    // Function to transfer a token
     function transferFrom(
         address from,
         address to,
@@ -58,7 +64,7 @@ contract ERC721Token {
         _transfer(from, to, tokenId);
     }
 
-    // функция для установки адреса, которому разрешено управление токеном
+    // Function to set approval for a specific address to manage a token
     function approve(address to, uint256 tokenId) public {
         address owner = ownerOf(tokenId);
         require(to != address(0), "ERC721: approve to the zero address");
@@ -71,25 +77,25 @@ contract ERC721Token {
         _approve(to, tokenId);
     }
 
-    // функция для получения адреса, которому разрешено управление токеном
+    // Function to get the address approved to manage a token
     function getApproved(uint256 tokenId) public view returns (address) {
         require(_exists(tokenId), "ERC721: approved query for nonexistent token");
         return _tokenApprovals[tokenId];
     }
 
-    // функция для установки разрешения на управление всеми токенами владельца
+    // Function to set approval for an operator to manage all tokens of the owner
     function setApprovalForAll(address operator, bool approved) public {
         require(operator != msg.sender, "ERC721: approve to caller");
         _operatorApprovals[msg.sender][operator] = approved;
         emit ApprovalForAll(msg.sender, operator, approved);
     }
 
-    // функция для проверки, разрешено ли оператору управление всеми токенами владельца
+    // Function to check if an operator is approved to manage all tokens of an owner
     function isApprovedForAll(address owner, address operator) public view returns (bool) {
         return _operatorApprovals[owner][operator];
     }
 
-    // функция для создания токена (mint)
+    // Function to mint a new token
     function mint(address to, uint256 tokenId) public {
         require(to != address(0), "ERC721: mint to the zero address");
         require(!_exists(tokenId), "ERC721: token already minted");
@@ -100,7 +106,7 @@ contract ERC721Token {
         emit Transfer(address(0), to, tokenId);
     }
 
-    // функция для уничтожения токена (burn)
+    // Function to burn a token
     function burn(uint256 tokenId) public {
         address owner = ownerOf(tokenId);
 
@@ -111,18 +117,18 @@ contract ERC721Token {
         emit Transfer(owner, address(0), tokenId);
     }
 
-    // вспомогательная функция для проверки существования токена
+    // Internal function to check if a token exists
     function _exists(uint256 tokenId) internal view returns (bool) {
         return _owners[tokenId] != address(0);
     }
 
-    // вспомогательная функция для проверки, является ли адрес владельцем или одобренным
+    // Internal function to check if an address is an owner or approved
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
         address owner = ownerOf(tokenId);
         return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
     }
 
-    // вспомогательная функция для выполнения передачи токена
+    // Internal function to perform token transfer
     function _transfer(
         address from,
         address to,
@@ -131,7 +137,7 @@ contract ERC721Token {
         require(ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
 
-        // очистить одобрения токена
+        // Clear token approval
         _approve(address(0), tokenId);
 
         _balances[from] -= 1;
@@ -141,13 +147,13 @@ contract ERC721Token {
         emit Transfer(from, to, tokenId);
     }
 
-    // вспомогательная функция для установки одобрения
+    // Internal function to set token approval
     function _approve(address to, uint256 tokenId) internal {
         _tokenApprovals[tokenId] = to;
         emit Approval(ownerOf(tokenId), to, tokenId);
     }
 
-    // вспомогательная функция для проверки интерфейса ERC721Receiver
+    // Internal function to check ERC721Receiver interface implementation
     function _checkOnERC721Received(
         address from,
         address to,
@@ -172,7 +178,7 @@ contract ERC721Token {
     }
 }
 
-// интерфейс для поддержки проверки onERC721Received
+// Interface to support onERC721Received checks
 interface IERC721Receiver {
     function onERC721Received(
         address operator,
