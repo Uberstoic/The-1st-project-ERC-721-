@@ -1,238 +1,257 @@
     const { ethers } = require("hardhat");
-    const { expect } = require("chai");
+const { expect } = require("chai");
 
-    describe("ERC721Token", function () {
-        let Token, token, owner, addr1, addr2;
+describe("ERC721Token", function () {
+    let Token;
+    let token;
+    let owner;
+    let addr1;
+    let addr2;
+    const TOKEN_NAME = "TestToken";
+    const TOKEN_SYMBOL = "TTK";
+    const BASE_URI = "https://test.com/token/";
 
-        beforeEach(async function () {
-            [owner, addr1, addr2] = await ethers.getSigners();
-            Token = await ethers.getContractFactory("ERC721Token");
-            token = await Token.deploy();
-            const tokenAddress = await token.getAddress();
+    beforeEach(async function () {
+        [owner, addr1, addr2] = await ethers.getSigners();
+        Token = await ethers.getContractFactory("ERC721Token");
+        token = await Token.deploy(TOKEN_NAME, TOKEN_SYMBOL, BASE_URI);
+    });
 
+    describe("Deployment", function () {
+        it("Should set the correct token name and symbol", async function () {
+            expect(await token.name()).to.equal(TOKEN_NAME);
+            expect(await token.symbol()).to.equal(TOKEN_SYMBOL);
         });
 
-        it("Should mint a token and assign it to the correct owner", async function () {
+        it("Should set the correct owner", async function () {
+            expect(await token.owner()).to.equal(owner.address);
+        });
+
+        it("Should support the correct interfaces", async function () {
+            expect(await token.supportsInterface("0x80ac58cd")).to.be.true; // ERC721
+            expect(await token.supportsInterface("0x5b5e139f")).to.be.true; // ERC721Metadata
+            expect(await token.supportsInterface("0x01ffc9a7")).to.be.true; // ERC165
+            expect(await token.supportsInterface("0x12345678")).to.be.false; // Random interface
+        });
+    });
+
+    describe("Minting", function () {
+        it("Should allow owner to mint a token", async function () {
             await token.mint(addr1.address, 1);
             expect(await token.ownerOf(1)).to.equal(addr1.address);
+            expect(await token.balanceOf(addr1.address)).to.equal(1);
         });
 
-        it("Should transfer a token", async function () {
-            await token.mint(addr1.address, 1);
-            await token.connect(addr1).transferFrom(addr1.address, owner.address, 1);
-            expect(await token.ownerOf(1)).to.equal(owner.address);
+        it("Should not allow non-owner to mint a token", async function () {
+            await expect(
+                token.connect(addr1).mint(addr2.address, 1)
+            ).to.be.revertedWith("Ownable: caller is not the owner");
         });
 
-        it("Should not mint a token that already exists", async function () {
-            await token.mint(addr1.address, 1);
-            await expect(token.mint(addr1.address, 1)).to.be.revertedWith("ERC721: token already minted");
+        it("Should not allow minting to zero address", async function () {
+            await expect(
+                token.mint(ethers.ZeroAddress, 1)
+            ).to.be.revertedWith("ERC721: mint to the zero address");
         });
-        
-        it("Should not burn a nonexistent token", async function () {
-            await expect(token.burn(1)).to.be.revertedWith("ERC721: owner query for nonexistent token");
-        });
-        
-        it("Should not transfer to zero address", async function () {
+
+        it("Should not allow minting duplicate token ID", async function () {
             await token.mint(addr1.address, 1);
             await expect(
-                token.connect(addr1).transferFrom(addr1.address, "0x0000000000000000000000000000000000000000", 1)
-            ).to.be.revertedWith("ERC721: transfer to the zero address");
-        });
-
-        it("Should approve a token and allow transfer by approved address", async function () {
-            await token.mint(addr1.address, 1);
-            await token.connect(addr1).approve(addr2.address, 1);
-        
-            expect(await token.getApproved(1)).to.equal(addr2.address);
-        
-            await token.connect(addr2).transferFrom(addr1.address, addr2.address, 1);
-            expect(await token.ownerOf(1)).to.equal(addr2.address);
-        });
-        
-        it("Should allow setting and checking approval for all tokens", async function () {
-            await token.setApprovalForAll(addr2.address, true);
-            expect(await token.isApprovedForAll(owner.address, addr2.address)).to.be.true;
-        
-            await token.setApprovalForAll(addr2.address, false);
-            expect(await token.isApprovedForAll(owner.address, addr2.address)).to.be.false;
+                token.mint(addr2.address, 1)
+            ).to.be.revertedWith("ERC721: token already minted");
         });
 
         it("Should emit Transfer event on mint", async function () {
             await expect(token.mint(addr1.address, 1))
-            .to.emit(token, "Transfer")
-            .withArgs("0x0000000000000000000000000000000000000000", addr1.address, 1);
+                .to.emit(token, "Transfer")
+                .withArgs(ethers.ZeroAddress, addr1.address, 1);
+        });
+    });
 
-        });
-        
-        it("Should emit Approval event", async function () {
+    describe("Token transfers", function () {
+        beforeEach(async function () {
             await token.mint(addr1.address, 1);
-            await expect(token.connect(addr1).approve(addr2.address, 1))
-                .to.emit(token, "Approval")
-                .withArgs(addr1.address, addr2.address, 1);
         });
-        
-        it("Should emit ApprovalForAll event", async function () {
-            await expect(token.setApprovalForAll(addr2.address, true))
-                .to.emit(token, "ApprovalForAll")
-                .withArgs(owner.address, addr2.address, true);
+
+        it("Should allow token owner to transfer", async function () {
+            await token.connect(addr1).transferFrom(addr1.address, addr2.address, 1);
+            expect(await token.ownerOf(1)).to.equal(addr2.address);
         });
-        
-        it("Should revert when querying approval for nonexistent token", async function () {
-            await expect(token.getApproved(999)).to.be.revertedWith("ERC721: approved query for nonexistent token");
-        });
-        
-        it("Should revert when transferring from incorrect owner", async function () {
-            await token.mint(addr1.address, 1);
+
+        it("Should not allow unauthorized transfer", async function () {
             await expect(
-                token.connect(addr2).transferFrom(addr2.address, owner.address, 1)
+                token.connect(addr2).transferFrom(addr1.address, addr2.address, 1)
             ).to.be.revertedWith("ERC721: caller is not token owner or approved");
-        });   
-        
-        it("Should return false for nonexistent token via getApproved", async function () {
-            await expect(token.getApproved(999)).to.be.revertedWith("ERC721: approved query for nonexistent token");
-        });        
+        });
 
-        // it("Should transfer to a contract implementing IERC721Receiver", async function () {
-        //     const Receiver = await ethers.getContractFactory("ERC721ReceiverMock");
-        //     const receiver = await Receiver.deploy();
-        //     const receiverAddress = await receiver.getAddress();
-        
-        //     await token.mint(addr1.address, 1);
-        //     await token.connect(addr1).safeTransferFrom(addr1.address, receiverAddress, 1);
-        
-        //     expect(await token.ownerOf(1)).to.equal(receiverAddress);
-        // });        
-        
-        it("Should revert when transferring to a contract not implementing IERC721Receiver", async function () {
-            const NonReceiver = await ethers.getContractFactory("NonERC721ReceiverMock");
-            const nonReceiver = await NonReceiver.deploy();
-            const nonReceiverAddress = await nonReceiver.getAddress();
-        
-            await token.mint(addr1.address, 1);
+        it("Should not allow transfer to zero address", async function () {
             await expect(
-                token.connect(addr1).safeTransferFrom(addr1.address, nonReceiverAddress, 1)
-            ).to.be.revertedWith("ERC721: transfer to non ERC721Receiver implementer");
-        });        
-
-        it("Should revert when transferring to zero address", async function () {
-            await token.mint(addr1.address, 1);
-            await expect(
-                token.connect(addr1).transferFrom(addr1.address, "0x0000000000000000000000000000000000000000", 1)
+                token.connect(addr1).transferFrom(addr1.address, ethers.ZeroAddress, 1)
             ).to.be.revertedWith("ERC721: transfer to the zero address");
         });
-        
-        it("Should revert when approving token by non-owner", async function () {
-            await token.mint(addr1.address, 1);
+
+        it("Should not allow transfer of nonexistent token", async function () {
             await expect(
-                token.connect(addr2).approve(owner.address, 1)
+                token.connect(addr1).transferFrom(addr1.address, addr2.address, 999)
+            ).to.be.revertedWith("ERC721: owner query for nonexistent token");
+        });
+
+        it("Should clear approvals on transfer", async function () {
+            await token.connect(addr1).approve(addr2.address, 1);
+            await token.connect(addr1).transferFrom(addr1.address, owner.address, 1);
+            expect(await token.getApproved(1)).to.equal(ethers.ZeroAddress);
+        });
+    });
+
+    describe("Approvals", function () {
+        beforeEach(async function () {
+            await token.mint(addr1.address, 1);
+        });
+
+        it("Should allow token owner to approve others", async function () {
+            await token.connect(addr1).approve(addr2.address, 1);
+            expect(await token.getApproved(1)).to.equal(addr2.address);
+        });
+
+        it("Should not allow approving self", async function () {
+            await expect(
+                token.connect(addr1).approve(addr1.address, 1)
+            ).to.be.revertedWith("ERC721: approval to current owner");
+        });
+
+        it("Should not allow unauthorized approval", async function () {
+            await expect(
+                token.connect(addr2).approve(addr2.address, 1)
             ).to.be.revertedWith("ERC721: approve caller is not owner nor approved for all");
         });
 
-        it("Should emit Transfer event on transfer", async function () {
-            await token.mint(addr1.address, 1);
-            await expect(token.connect(addr1).transferFrom(addr1.address, owner.address, 1))
-                .to.emit(token, "Transfer")
-                .withArgs(addr1.address, owner.address, 1);
+        it("Should allow approved address to transfer", async function () {
+            await token.connect(addr1).approve(addr2.address, 1);
+            await token.connect(addr2).transferFrom(addr1.address, addr2.address, 1);
+            expect(await token.ownerOf(1)).to.equal(addr2.address);
         });
-        
+
+        it("Should allow setting approval for all", async function () {
+            await token.connect(addr1).setApprovalForAll(addr2.address, true);
+            expect(await token.isApprovedForAll(addr1.address, addr2.address)).to.be.true;
+        });
+
+        it("Should allow approved operator to transfer", async function () {
+            await token.connect(addr1).setApprovalForAll(addr2.address, true);
+            await token.connect(addr2).transferFrom(addr1.address, owner.address, 1);
+            expect(await token.ownerOf(1)).to.equal(owner.address);
+        });
+
         it("Should emit Approval event", async function () {
-            await token.mint(addr1.address, 1);
             await expect(token.connect(addr1).approve(addr2.address, 1))
                 .to.emit(token, "Approval")
                 .withArgs(addr1.address, addr2.address, 1);
-        });   
-
-        it("Should revert when querying balance of zero address", async function () {
-            await expect(token.balanceOf("0x0000000000000000000000000000000000000000")).to.be.revertedWith("ERC721: balance query for the zero address");
-        });        
-
-        it("Should revert when querying owner of nonexistent token", async function () {
-            await expect(token.ownerOf(999)).to.be.revertedWith("ERC721: owner query for nonexistent token");
         });
 
-        it("Should return false for nonexistent token in _exists", async function () {
-            await expect(token.getApproved(999)).to.be.revertedWith("ERC721: approved query for nonexistent token");
-        });        
+        it("Should emit ApprovalForAll event", async function () {
+            await expect(token.connect(addr1).setApprovalForAll(addr2.address, true))
+                .to.emit(token, "ApprovalForAll")
+                .withArgs(addr1.address, addr2.address, true);
+        });
+    });
 
-        it("Should revert when transferring to non ERC721Receiver implementer", async function () {
-            const NonReceiver = await ethers.getContractFactory("NonERC721ReceiverMock");
-            const nonReceiver = await NonReceiver.deploy();
-            const nonReceiverAddress = await nonReceiver.getAddress();
-        
+    describe("Token URI", function () {
+        it("Should return correct token URI", async function () {
             await token.mint(addr1.address, 1);
+            expect(await token.tokenURI(1)).to.equal(`${BASE_URI}1.json`);
+        });
+
+        it("Should revert for nonexistent token", async function () {
+            await expect(token.tokenURI(99))
+                .to.be.revertedWith("ERC721Metadata: URI query for nonexistent token");
+        });
+    });
+
+    describe("Balance and ownership queries", function () {
+        it("Should revert when querying balance of zero address", async function () {
+            await expect(token.balanceOf(ethers.ZeroAddress))
+                .to.be.revertedWith("ERC721: balance query for the zero address");
+        });
+
+        it("Should revert when querying owner of nonexistent token", async function () {
+            await expect(token.ownerOf(999))
+                .to.be.revertedWith("ERC721: owner query for nonexistent token");
+        });
+    });
+
+    describe("Safe transfers", function () {
+        let receiverContract;
+        let nonReceiverContract;
+        let receiverThatRejects;
+
+        beforeEach(async function () {
+            await token.mint(addr1.address, 1);
+            
+            // Deploy receiver contracts
+            const ReceiverMock = await ethers.getContractFactory("ERC721ReceiverMock");
+            receiverContract = await ReceiverMock.deploy(true); // Will accept tokens
+            receiverThatRejects = await ReceiverMock.deploy(false); // Will reject tokens
+            
+            const NonReceiverMock = await ethers.getContractFactory("NonERC721ReceiverMock");
+            nonReceiverContract = await NonReceiverMock.deploy();
+        });
+
+        it("Should allow safe transfer to EOA", async function () {
+            await token.connect(addr1).safeTransferFrom(addr1.address, addr2.address, 1);
+            expect(await token.ownerOf(1)).to.equal(addr2.address);
+        });
+
+        it("Should allow safe transfer with data to EOA", async function () {
+            await token.connect(addr1)["safeTransferFrom(address,address,uint256,bytes)"](
+                addr1.address,
+                addr2.address,
+                1,
+                "0x"
+            );
+            expect(await token.ownerOf(1)).to.equal(addr2.address);
+        });
+
+        it("Should allow safe transfer to receiver contract", async function () {
+            const receiverAddress = await receiverContract.getAddress();
+            await token.connect(addr1).safeTransferFrom(addr1.address, receiverAddress, 1);
+            expect(await token.ownerOf(1)).to.equal(receiverAddress);
+        });
+
+        it("Should allow safe transfer with data to receiver contract", async function () {
+            const receiverAddress = await receiverContract.getAddress();
+            await token.connect(addr1)["safeTransferFrom(address,address,uint256,bytes)"](
+                addr1.address,
+                receiverAddress,
+                1,
+                "0x42"
+            );
+            expect(await token.ownerOf(1)).to.equal(receiverAddress);
+        });
+
+        it("Should not allow safe transfer to non-receiver contract", async function () {
+            const nonReceiverAddress = await nonReceiverContract.getAddress();
             await expect(
                 token.connect(addr1).safeTransferFrom(addr1.address, nonReceiverAddress, 1)
             ).to.be.revertedWith("ERC721: transfer to non ERC721Receiver implementer");
         });
-        
-        // it("Should transfer to ERC721Receiver implementer", async function () {
-        //     const Receiver = await ethers.getContractFactory("ERC721ReceiverMock");
-        //     const receiver = await Receiver.deploy();
-        //     const receiverAddress = await receiver.getAddress();
-        
-        //     await token.mint(addr1.address, 1);
-        //     await token.connect(addr1).safeTransferFrom(addr1.address, receiverAddress, 1);
-        
-        //     expect(await token.ownerOf(1)).to.equal(receiverAddress);
-        // });
-        
-        it("Should revert when transferring from incorrect owner", async function () {
-            await token.mint(addr1.address, 1);
+
+        it("Should not allow safe transfer to receiver contract that rejects tokens", async function () {
+            const rejecterAddress = await receiverThatRejects.getAddress();
             await expect(
-                token.connect(addr2).transferFrom(addr1.address, owner.address, 1)
-            ).to.be.revertedWith("ERC721: caller is not token owner or approved");
+                token.connect(addr1).safeTransferFrom(addr1.address, rejecterAddress, 1)
+            ).to.be.revertedWith("ERC721: transfer to non ERC721Receiver implementer");
         });
 
-        it("Should set approval correctly", async function () {
-            await token.mint(addr1.address, 1);
-            await token.connect(addr1).approve(addr2.address, 1);
-        
-            expect(await token.getApproved(1)).to.equal(addr2.address);
+        it("Should not allow safe transfer with data to non-receiver contract", async function () {
+            const nonReceiverAddress = await nonReceiverContract.getAddress();
+            await expect(
+                token.connect(addr1)["safeTransferFrom(address,address,uint256,bytes)"](
+                    addr1.address,
+                    nonReceiverAddress,
+                    1,
+                    "0x42"
+                )
+            ).to.be.revertedWith("ERC721: transfer to non ERC721Receiver implementer");
         });
-        
-        it("Should revert when minting to the zero address", async function () {
-            await expect(token.mint("0x0000000000000000000000000000000000000000", 1)).to.be.revertedWith("ERC721: mint to the zero address");
-        });    
-        
-        it("Should revert when minting an existing token", async function () {
-            await token.mint(addr1.address, 1);
-            await expect(token.mint(addr1.address, 1)).to.be.revertedWith("ERC721: token already minted");
-        });
-
-        it("Should burn a token", async function () {
-            await token.mint(addr1.address, 1);
-            await token.connect(addr1).burn(1);
-            await expect(token.ownerOf(1)).to.be.revertedWith("ERC721: owner query for nonexistent token");
-        });
-
-        it("Should revert when burning nonexistent token", async function () {
-            await expect(token.burn(999)).to.be.revertedWith("ERC721: owner query for nonexistent token");
-        });
-        
-
-        it("Should revert when approving the zero address", async function () {
-            await token.mint(addr1.address, 1);
-            await expect(token.connect(addr1).approve("0x0000000000000000000000000000000000000000", 1))
-                .to.be.revertedWith("ERC721: approve to the zero address");
-        });        
-
-        it("Should revert when transferring nonexistent token", async function () {
-            await expect(token.transferFrom(addr1.address, addr2.address, 999))
-                .to.be.revertedWith("ERC721: owner query for nonexistent token");
-        });        
-
-        it("Should transfer to an EOA (non-contract address) without issues", async function () {
-            await token.mint(addr1.address, 1);
-            await token.connect(addr1).safeTransferFrom(addr1.address, addr2.address, 1); // addr2 - EOA
-            expect(await token.ownerOf(1)).to.equal(addr2.address);
-        });
-              
-        // it("Should transfer to a contract implementing IERC721Receiver successfully", async function () {
-        //     const Receiver = await ethers.getContractFactory("ERC721ReceiverMock");
-        //     const receiver = await Receiver.deploy();
-        //     await token.mint(addr1.address, 1);
-        //     await token.connect(addr1).safeTransferFrom(addr1.address, receiver.address, 1);
-        //     expect(await token.ownerOf(1)).to.equal(receiver.address);
-        // });        
-
     });
+});

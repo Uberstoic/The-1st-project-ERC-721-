@@ -66,11 +66,26 @@ contract ERC721Token is IERC721, IERC721Metadata, IERC165 {
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
+    // Owner of the contract
+    address private _owner;
+
+    // Modifier to restrict access to owner only
+    modifier onlyOwner() {
+        require(msg.sender == _owner, "Ownable: caller is not the owner");
+        _;
+    }
+
+    // Get the current owner of the contract
+    function owner() public view returns (address) {
+        return _owner;
+    }
+
     // Constructor to set name, symbol, and base URI
     constructor(string memory name_, string memory symbol_, string memory baseTokenURI_) {
         _name = name_;
         _symbol = symbol_;
         _baseTokenURI = baseTokenURI_;
+        _owner = msg.sender; // Set deployer as owner
     }
 
     // ERC165: Interface identification
@@ -156,15 +171,15 @@ contract ERC721Token is IERC721, IERC721Metadata, IERC165 {
         return _owners[tokenId] != address(0);
     }
 
-    // Public function to mint a new token
-    function mint(address to, uint256 tokenId) public {
+    // External function to mint a new token, only callable by owner
+    function mint(address to, uint256 tokenId) external onlyOwner {
         require(to != address(0), "ERC721: mint to the zero address");
         require(!_exists(tokenId), "ERC721: token already minted");
 
         _balances[to] += 1;
         _owners[tokenId] = to;
 
-        emit Transfer(address(0), to, tokenId); // Emit the Transfer event
+        emit Transfer(address(0), to, tokenId);
     }
 
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
